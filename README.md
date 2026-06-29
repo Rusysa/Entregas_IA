@@ -3,7 +3,6 @@
 # Entregas IA
 
 Este repositorio reúne mis entregas de la materia.  
-**Nota:** actualmente solo está cargada la **primera entrega** (`Actividad sistemas expertos`) y se irán agregando las siguientes.
 
 ## Estructura actual
 
