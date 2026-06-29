@@ -1,15 +1,14 @@
 # Rudy Sadaña Merenciano
 
-## Actividad 0.1.1 — Entrega 1
+# Entregas IA
 
-Esta carpeta contiene la evidencia general de la actividad `Evaluación/0.1 Actividades/0.1.1 Actividad entrega 1`.
+Este repositorio reúne mis entregas de la materia.  
+**Nota:** actualmente solo está cargada la **primera entrega** (`Actividad sistemas expertos`) y se irán agregando las siguientes.
 
-### Contenido de la entrega
-- `README.md`: descripción general.
-- `guion.md`: guion de la presentación y liga del video.
-- `Resumen de ingenieria del conocimiento y sistemas expertos.md`: resumen de los PDFs solicitados.
-- Archivos PDF de resultados (mapa mental y presentación).
-- Liga al artículo en Overleaf.
+## Estructura actual
 
-### Nota
-Verificar que los enlaces (video y artículo) sean públicos antes de la entrega final.
+- `entregasIA/se/actividad1/2. Segundo apartado.pdf`
+- `entregasIA/se/actividad1/3. presentacion sistemas expertos.pdf`
+- `entregasIA/se/actividad1/4. Guion del video.md`
+- `entregasIA/se/actividad1/5. Articulo.md`
+- `entregasIA/se/actividad1/6. Resumen de ing del conocimiento y sistemas expertos.md`
