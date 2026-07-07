@@ -1,0 +1,181 @@
+---
+title: "Actividad Naive Bayes - Rendimiento Académico FCI"
+date: "`r format(Sys.Date(), '%d/%m/%Y')`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    theme: cerulean
+    number_sections: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+```
+
+# Introducción
+
+En esta actividad se aplica el algoritmo **Naive Bayes** para predecir el
+**Rendimiento** académico de un grupo de estudiantes de la FCI, a partir de
+las variables: Tiempo de estudio, Asistencia, Participación y Situación
+económica. Se entrena el modelo con el 80% de los datos y se evalúa con el
+20% restante mediante una matriz de confusión.
+
+# Librerías
+
+```{r librerias}
+# install.packages(c("e1071", "caret", "ggplot2"))
+library(e1071)   # Naive Bayes
+library(caret)   # particion de datos y matriz de confusion
+library(ggplot2) # graficos
+```
+
+# Construcción del conjunto de datos
+
+Se seleccionó (simuló) al azar una muestra de **40 estudiantes** de la FCI,
+tabulando las variables descritas en la actividad. Las categorías se generan
+respetando los rangos establecidos:
+
+* **Tiempo_Estudio**: Alto (≥15 h/sem), Medio (8-14 h/sem), Bajo (≤7 h/sem)
+* **Asistencia**: Alta (≥90%), Media (75-89%), Baja (≤74%)
+* **Participacion**: Alta (≥80%), Media (50-79%), Baja (≤49%)
+* **SituacionEcon**: Buena, Mala
+* **Rendimiento** (objetivo): Excelente (≥90), Bueno (80-89), Regular (70-79), Deficiente (≤69)
+
+```{r datos}
+set.seed(123)
+n <- 40
+
+TiempoEstudio  <- sample(c("Alto", "Medio", "Bajo"), n, replace = TRUE,
+                          prob = c(0.35, 0.35, 0.30))
+Asistencia     <- sample(c("Alta", "Media", "Baja"), n, replace = TRUE,
+                          prob = c(0.40, 0.35, 0.25))
+Participacion  <- sample(c("Alta", "Media", "Baja"), n, replace = TRUE,
+                          prob = c(0.35, 0.40, 0.25))
+SituacionEcon  <- sample(c("Buena", "Mala"), n, replace = TRUE,
+                          prob = c(0.55, 0.45))
+
+# Puntaje numérico auxiliar (0-100) usado únicamente para generar
+# de forma coherente la variable objetivo Rendimiento
+puntaje_var <- function(x, valores) {
+  pesos <- c(20, 10, 0)
+  names(pesos) <- valores
+  pesos[x]
+}
+
+puntaje <- 55 +
+  puntaje_var(TiempoEstudio, c("Alto", "Medio", "Bajo")) +
+  puntaje_var(Asistencia,    c("Alta", "Media", "Baja")) +
+  puntaje_var(Participacion, c("Alta", "Media", "Baja")) +
+  ifelse(SituacionEcon == "Buena", 8, 0) +
+  rnorm(n, mean = 0, sd = 6)
+
+Rendimiento <- cut(puntaje,
+                    breaks = c(-Inf, 69, 79, 89, Inf),
+                    labels = c("Deficiente", "Regular", "Bueno", "Excelente"))
+
+datos <- data.frame(
+  Est            = 1:n,
+  TiempoEstudio  = factor(TiempoEstudio, levels = c("Bajo", "Medio", "Alto")),
+  Asistencia     = factor(Asistencia,    levels = c("Baja", "Media", "Alta")),
+  Participacion  = factor(Participacion, levels = c("Baja", "Media", "Alta")),
+  SituacionEcon  = factor(SituacionEcon, levels = c("Mala", "Buena")),
+  Rendimiento    = factor(Rendimiento,
+                          levels = c("Deficiente", "Regular", "Bueno", "Excelente"))
+)
+
+datos
+```
+
+# Análisis exploratorio
+
+```{r explora}
+str(datos)
+summary(datos)
+table(datos$Rendimiento)
+```
+
+```{r grafico-rendimiento}
+ggplot(datos, aes(x = Rendimiento, fill = Rendimiento)) +
+  geom_bar() +
+  labs(title = "Distribución de Rendimiento académico",
+       x = "Rendimiento", y = "Número de estudiantes") +
+  theme_minimal() +
+  theme(legend.position = "none")
+```
+
+```{r grafico-tiempo}
+ggplot(datos, aes(x = TiempoEstudio, fill = Rendimiento)) +
+  geom_bar(position = "dodge") +
+  labs(title = "Rendimiento según Tiempo de Estudio",
+       x = "Tiempo de estudio", y = "Número de estudiantes") +
+  theme_minimal()
+```
+
+# Partición de datos (80% entrenamiento / 20% prueba)
+
+```{r particion}
+set.seed(123)
+indice_train <- createDataPartition(datos$Rendimiento, p = 0.8, list = FALSE)
+
+train_data <- datos[indice_train, -1]  # se excluye la columna Est
+test_data  <- datos[-indice_train, -1]
+
+cat("Observaciones de entrenamiento:", nrow(train_data), "\n")
+cat("Observaciones de prueba       :", nrow(test_data), "\n")
+```
+
+# Entrenamiento del modelo Naive Bayes
+
+```{r modelo}
+modelo_nb <- naiveBayes(Rendimiento ~ TiempoEstudio + Asistencia +
+                           Participacion + SituacionEcon,
+                         data = train_data)
+
+modelo_nb
+```
+
+# Predicción sobre el conjunto de prueba
+
+```{r prediccion}
+predicciones <- predict(modelo_nb, newdata = test_data)
+
+resultado <- data.frame(
+  Real      = test_data$Rendimiento,
+  Predicho  = predicciones
+)
+resultado
+```
+
+# Matriz de confusión
+
+```{r matriz-confusion}
+matriz_confusion <- confusionMatrix(predicciones, test_data$Rendimiento)
+matriz_confusion
+```
+
+```{r matriz-confusion-grafico}
+cm_df <- as.data.frame(matriz_confusion$table)
+
+ggplot(cm_df, aes(x = Reference, y = Prediction, fill = Freq)) +
+  geom_tile(color = "white") +
+  geom_text(aes(label = Freq), size = 5) +
+  scale_fill_gradient(low = "white", high = "steelblue") +
+  labs(title = "Matriz de Confusión - Naive Bayes",
+       x = "Valor real", y = "Valor predicho") +
+  theme_minimal()
+```
+
+# Conclusiones
+
+* La exactitud (Accuracy) global del modelo fue de
+  **`r round(matriz_confusion$overall["Accuracy"] * 100, 1)`%** sobre el
+  conjunto de prueba.
+* Las variables **Tiempo de estudio** y **Asistencia** parecen tener mayor
+  relación con un Rendimiento Excelente/Bueno, mientras que valores Bajos en
+  estas variables tienden a asociarse con Rendimiento Regular/Deficiente.
+* Dado el tamaño reducido de la muestra (n = 40), los resultados deben
+  interpretarse con cautela; un conjunto de datos más grande permitiría
+  estimaciones de probabilidad más robustas para Naive Bayes.
+* Se recomienda complementar este análisis con otros algoritmos de
+  clasificación (árboles de decisión, kNN) para comparar el desempeño.

@@ -1,0 +1,243 @@
+---
+title: "Aplicación del algoritmo Naive Bayes al conjunto de datos Iris"
+author: "Análisis con R"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    number_sections: true
+    theme: cosmo
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+```
+
+# Introducción
+
+**Naive Bayes** es un algoritmo de clasificación supervisada basado en el
+**teorema de Bayes**, que calcula la probabilidad de que una observación
+pertenezca a una clase, a partir de las probabilidades de sus atributos.
+
+Se llama *"naive"* (ingenuo) porque asume que todos los atributos predictores
+son **condicionalmente independientes** entre sí dado el valor de la clase.
+Aunque esta suposición rara vez se cumple exactamente en datos reales, el
+algoritmo suele funcionar sorprendentemente bien en la práctica, es rápido de
+entrenar y requiere pocos datos para estimar los parámetros necesarios.
+
+## Teorema de Bayes
+
+El teorema de Bayes se expresa como:
+
+$$
+P(C_k \mid X) = \frac{P(X \mid C_k) \, P(C_k)}{P(X)}
+$$
+
+Donde:
+
+- $P(C_k \mid X)$: probabilidad posterior de la clase $C_k$ dado el vector de
+  atributos $X$.
+- $P(X \mid C_k)$: verosimilitud, probabilidad de observar $X$ dado que la
+  clase es $C_k$.
+- $P(C_k)$: probabilidad a priori de la clase $C_k$.
+- $P(X)$: probabilidad marginal de $X$ (actúa como constante normalizadora).
+
+Dado el supuesto de independencia condicional, la verosimilitud conjunta se
+descompone como el producto de las verosimilitudes individuales de cada
+atributo:
+
+$$
+P(X \mid C_k) = \prod_{i=1}^{n} P(x_i \mid C_k)
+$$
+
+El clasificador asigna la observación a la clase que maximiza la probabilidad
+posterior:
+
+$$
+\hat{y} = \underset{k}{\operatorname{argmax}} \; P(C_k) \prod_{i=1}^{n} P(x_i \mid C_k)
+$$
+
+Cuando los atributos son numéricos continuos (como en el caso de Iris), se
+suele asumir que, dentro de cada clase, cada atributo sigue una distribución
+**normal (gaussiana)**, y sus parámetros (media y desviación estándar) se
+estiman a partir de los datos de entrenamiento.
+
+## El conjunto de datos Iris
+
+El dataset **Iris**, recopilado originalmente por Ronald Fisher (1936),
+contiene 150 observaciones de flores de iris, 50 de cada una de tres especies:
+*setosa*, *versicolor* y *virginica*. Para cada flor se midieron cuatro
+atributos numéricos:
+
+- Largo del sépalo (`Sepal.Length`)
+- Ancho del sépalo (`Sepal.Width`)
+- Largo del pétalo (`Petal.Length`)
+- Ancho del pétalo (`Petal.Width`)
+
+El objetivo es predecir la especie (`Species`) a partir de estas cuatro
+medidas, lo que lo convierte en un problema clásico de clasificación
+multiclase, ideal para ilustrar Naive Bayes.
+
+# Preparación del entorno
+
+```{r librerias}
+# Instalar paquetes si no están disponibles (ejecutar una sola vez)
+paquetes <- c("e1071", "caret", "ggplot2", "GGally")
+instalar <- paquetes[!(paquetes %in% installed.packages()[, "Package"])]
+if (length(instalar) > 0) install.packages(instalar)
+
+library(e1071)   # Implementación de Naive Bayes
+library(caret)   # División de datos y matriz de confusión
+library(ggplot2) # Visualización
+library(GGally)  # Gráfico de pares de variables
+```
+
+# Exploración de los datos
+
+```{r carga-datos}
+data(iris)
+str(iris)
+summary(iris)
+```
+
+```{r distribucion-clases}
+table(iris$Species)
+```
+
+Las clases están perfectamente balanceadas: 50 observaciones por especie.
+
+## Relación entre atributos
+
+```{r pairs-plot, fig.width=8, fig.height=6}
+ggpairs(iris, aes(color = Species, alpha = 0.6),
+        columns = 1:4,
+        title = "Relación entre atributos de Iris por especie")
+```
+
+Se observa que `Petal.Length` y `Petal.Width` separan muy bien a *setosa* del
+resto, mientras que *versicolor* y *virginica* presentan cierto solapamiento.
+
+# División en conjunto de entrenamiento y prueba
+
+Para evaluar el modelo de forma honesta, se separan los datos en un conjunto
+de entrenamiento (70%) y uno de prueba (30%), manteniendo la proporción de
+clases mediante muestreo estratificado.
+
+```{r split}
+set.seed(123)
+indices <- createDataPartition(iris$Species, p = 0.7, list = FALSE)
+
+entrenamiento <- iris[indices, ]
+prueba        <- iris[-indices, ]
+
+nrow(entrenamiento)
+nrow(prueba)
+```
+
+# Entrenamiento del modelo Naive Bayes
+
+Se utiliza la función `naiveBayes()` del paquete `e1071`, que para atributos
+numéricos estima automáticamente una distribución normal por clase.
+
+```{r entrenar-modelo}
+modelo_nb <- naiveBayes(Species ~ ., data = entrenamiento)
+modelo_nb
+```
+
+La salida del modelo muestra:
+
+- Las probabilidades **a priori** de cada clase (`A-priori probabilities`).
+- Para cada atributo y cada clase, la **media** y la **desviación estándar**
+  estimadas, que definen la distribución normal usada para calcular la
+  verosimilitud.
+
+# Predicción sobre el conjunto de prueba
+
+```{r prediccion}
+predicciones <- predict(modelo_nb, newdata = prueba)
+head(data.frame(Real = prueba$Species, Predicho = predicciones), 10)
+```
+
+También se pueden obtener las probabilidades posteriores para cada clase:
+
+```{r prediccion-prob}
+probabilidades <- predict(modelo_nb, newdata = prueba, type = "raw")
+head(round(probabilidades, 4))
+```
+
+# Evaluación del modelo
+
+## Matriz de confusión
+
+```{r matriz-confusion}
+matriz_confusion <- confusionMatrix(predicciones, prueba$Species)
+matriz_confusion
+```
+
+## Interpretación de resultados
+
+```{r accuracy}
+exactitud <- matriz_confusion$overall["Accuracy"]
+cat("Exactitud (Accuracy) del modelo:", round(exactitud * 100, 2), "%\n")
+```
+
+```{r por-clase}
+matriz_confusion$byClass[, c("Sensitivity", "Specificity", "Pos Pred Value")]
+```
+
+En general, el modelo Naive Bayes clasifica correctamente a *Iris-setosa* con
+un 100% de precisión, dado que es linealmente separable de las otras dos
+especies. Los eventuales errores de clasificación suelen concentrarse entre
+*versicolor* y *virginica*, ya que estas dos clases presentan atributos con
+distribuciones más solapadas (especialmente en `Sepal.Width` y
+`Sepal.Length`).
+
+# Visualización de la frontera de decisión (Petal.Length vs Petal.Width)
+
+Para ilustrar visualmente cómo separa el modelo a las clases, se entrena un
+segundo modelo usando solo dos atributos (los más discriminantes) y se grafica
+la región de decisión.
+
+```{r frontera-decision, fig.width=7, fig.height=5}
+modelo_2d <- naiveBayes(Species ~ Petal.Length + Petal.Width, data = entrenamiento)
+
+rango_largo <- seq(min(iris$Petal.Length) - 0.5, max(iris$Petal.Length) + 0.5, length.out = 200)
+rango_ancho <- seq(min(iris$Petal.Width) - 0.5, max(iris$Petal.Width) + 0.5, length.out = 200)
+malla <- expand.grid(Petal.Length = rango_largo, Petal.Width = rango_ancho)
+malla$Species <- predict(modelo_2d, newdata = malla)
+
+ggplot() +
+  geom_tile(data = malla, aes(x = Petal.Length, y = Petal.Width, fill = Species), alpha = 0.3) +
+  geom_point(data = iris, aes(x = Petal.Length, y = Petal.Width, color = Species), size = 2) +
+  labs(title = "Región de decisión de Naive Bayes",
+       x = "Largo del pétalo (cm)", y = "Ancho del pétalo (cm)") +
+  theme_minimal()
+```
+
+# Ventajas y limitaciones observadas
+
+**Ventajas:**
+
+- Entrenamiento muy rápido y de bajo costo computacional.
+- Buen desempeño incluso con pocos datos.
+- Fácil de interpretar: cada clase queda descrita por medias y desviaciones
+  estándar de sus atributos.
+
+**Limitaciones:**
+
+- El supuesto de independencia entre atributos rara vez se cumple (por
+  ejemplo, `Petal.Length` y `Petal.Width` están altamente correlacionados).
+- Al asumir distribuciones normales para atributos continuos, el modelo puede
+  perder precisión si esa suposición no se ajusta bien a los datos reales.
+- Su desempeño se degrada frente a clases con distribuciones muy solapadas,
+  como se observó entre *versicolor* y *virginica*.
+
+# Conclusión
+
+A pesar de su simplicidad y de la suposición "ingenua" de independencia entre
+atributos, Naive Bayes logra un desempeño alto en el conjunto de datos Iris,
+en gran parte porque una de las tres clases (*setosa*) es linealmente
+separable y las variables de pétalo son muy informativas. Esto confirma que
+Naive Bayes es una excelente opción como modelo base (*baseline*) rápido y
+sencillo antes de probar algoritmos más complejos.
