@@ -1,0 +1,9 @@
+{
+  "name": "tau-prolog-proyectos",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Sistema experto de asignación de proyectos con Tau-Prolog (navegador)",
+  "scripts": {
+    "start": "node server.js"
+  }
+}

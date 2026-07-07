@@ -17,16 +17,34 @@ Este proyecto implementa un sistema experto con Tau-Prolog para controlar la asi
 
 - `proyectos_tau.pl`: base de conocimiento y reglas
 - `index.html`: interfaz simple en navegador con Tau-Prolog
+- `server.js`: servidor estático en Node.js
+- `package.json`: script de ejecución (`npm start`)
 
-## Cómo ejecutar
+## Cómo ejecutar (JavaScript completo)
 
-Puede abrir `index.html` directamente en navegador. Si el navegador bloquea el `fetch` local, use un servidor estático:
+Este proyecto ahora se ejecuta con **Node.js**, sin usar Python.
+
+1. Entrar a la carpeta del proyecto:
 
 ```bash
-python3 -m http.server 8000
+cd entregasIA/se/actividad3/2_tau_prolog_proyectos
 ```
 
-Luego abra `http://localhost:8000` y entre a la carpeta del proyecto.
+2. Iniciar servidor estático con npm:
+
+```bash
+npm start
+```
+
+3. Abrir en navegador:
+
+- `http://localhost:8000`
+
+> Si desea cambiar el puerto:
+>
+> ```bash
+> PORT=9000 npm start
+> ```
 
 ## Consultas Prolog útiles
 

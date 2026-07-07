@@ -49,15 +49,20 @@ proyecto_con_nivel(Codigo, Nivel) :-
 
 contar_senior(Count) :-
     findall(N, desarrollador(N, senior), L),
-    length(L, Count).
+    contar_lista(L, Count).
 
 contar_avanzado(Count) :-
     findall(N, desarrollador(N, avanzado), L),
-    length(L, Count).
+    contar_lista(L, Count).
 
 contar_junior(Count) :-
     findall(N, desarrollador(N, junior), L),
-    length(L, Count).
+    contar_lista(L, Count).
+
+contar_lista([], 0).
+contar_lista([_|T], Count) :-
+    contar_lista(T, C1),
+    Count is C1 + 1.
 
 % ------------------------------
 % Evaluacion de capacidad

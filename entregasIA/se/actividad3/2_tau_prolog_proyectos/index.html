@@ -1,128 +1,237 @@
 <!doctype html>
 <html lang="es">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Sistema experto Tau-Prolog - Proyectos</title>
-  <script src="https://cdn.jsdelivr.net/npm/tau-prolog@0.3.4/modules/core.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/tau-prolog@0.3.4/modules/lists.min.js"></script>
-  <style>
-    body { font-family: Arial, sans-serif; margin: 24px; line-height: 1.4; }
-    h1, h2 { margin-bottom: 8px; }
-    .row { display: flex; gap: 12px; align-items: center; margin: 8px 0; }
-    button { padding: 8px 12px; cursor: pointer; }
-    input { padding: 7px; }
-    pre { background: #111; color: #e8e8e8; padding: 12px; border-radius: 8px; overflow:auto; }
-  </style>
-</head>
-<body>
-  <h1>Sistema experto (Tau-Prolog): Asignación de Proyectos</h1>
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Sistema experto Tau-Prolog - Proyectos</title>
+        <script src="https://cdn.jsdelivr.net/npm/tau-prolog@0.3.4/modules/core.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/tau-prolog@0.3.4/modules/lists.min.js"></script>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                margin: 24px;
+                line-height: 1.4;
+            }
+            h1,
+            h2 {
+                margin-bottom: 8px;
+            }
+            .row {
+                display: flex;
+                gap: 12px;
+                align-items: center;
+                margin: 8px 0;
+            }
+            button {
+                padding: 8px 12px;
+                cursor: pointer;
+            }
+            input {
+                padding: 7px;
+            }
+            pre {
+                background: #111;
+                color: #e8e8e8;
+                padding: 12px;
+                border-radius: 8px;
+                overflow: auto;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>Sistema experto (Tau-Prolog): Asignación de Proyectos</h1>
 
-  <div class="row">
-    <button id="btnDevs">1) Listar desarrolladores</button>
-    <button id="btnProy">2) Listar proyectos</button>
-  </div>
+        <div class="row">
+            <button id="btnDevs">1) Listar desarrolladores</button>
+            <button id="btnProy">2) Listar proyectos</button>
+        </div>
 
-  <div class="row">
-    <label for="proyectoCheck">Proyecto:</label>
-    <input id="proyectoCheck" value="d" />
-    <button id="btnTiene">3) ¿Hay personal suficiente?</button>
-    <button id="btnFalta">4) ¿Qué falta contratar?</button>
-  </div>
+        <div class="row">
+            <label for="proyectoCheck">Proyecto:</label>
+            <input id="proyectoCheck" value="d" />
+            <button id="btnTiene">3) ¿Hay personal suficiente?</button>
+            <button id="btnFalta">4) ¿Qué falta contratar?</button>
+        </div>
 
-  <h2>Salida</h2>
-  <pre id="out">Listo.</pre>
+        <h2>Salida</h2>
+        <pre id="out">Listo.</pre>
 
-  <script>
-    const out = document.getElementById('out');
-    let session = null;
+        <script>
+            const out = document.getElementById("out");
+            let session = null;
 
-    async function loadKnowledgeBase() {
-      const kb = await fetch('proyectos_tau.pl').then(r => r.text());
-      session = pl.create(2000);
-      return new Promise((resolve, reject) => {
-        session.consult(kb, {
-          success: resolve,
-          error: err => reject(new Error(pl.format_error(err)))
-        });
-      });
-    }
+            async function loadKnowledgeBase() {
+                const kb = await fetch("proyectos_tau.pl").then((r) =>
+                    r.text(),
+                );
+                session = pl.create(2000);
+                return new Promise((resolve, reject) => {
+                    session.consult(kb, {
+                        success: resolve,
+                        error: (err) => reject(new Error(formatError(err))),
+                    });
+                });
+            }
 
-    function runQuery(query, onAnswer) {
-      return new Promise((resolve, reject) => {
-        session.query(query, {
-          success: () => {
-            const answers = [];
-            session.answers(x => {
-              if (x === false) {
-                onAnswer(answers);
-                resolve(answers);
-              } else {
-                answers.push(session.format_answer(x));
-              }
-            });
-          },
-          error: err => reject(new Error(pl.format_error(err)))
-        });
-      });
-    }
+            function formatAnswer(answer) {
+                return typeof pl.format_answer === "function"
+                    ? pl.format_answer(answer)
+                    : String(answer);
+            }
 
-    function prettyLines(lines, emptyMsg = 'Sin resultados.') {
-      return lines.length ? lines.join('\n') : emptyMsg;
-    }
+            function formatError(err) {
+                return typeof pl.format_error === "function"
+                    ? pl.format_error(err)
+                    : String(err);
+            }
 
-    async function init() {
-      try {
-        await loadKnowledgeBase();
-        out.textContent = 'Base de conocimiento cargada correctamente.';
-      } catch (e) {
-        out.textContent = 'Error cargando base: ' + e.message;
-      }
-    }
+            function runQuery(query) {
+                return new Promise((resolve, reject) => {
+                    session.query(query, {
+                        success: () => {
+                            const answers = [];
 
-    document.getElementById('btnDevs').addEventListener('click', async () => {
-      try {
-        const ans = await runQuery('desarrollador_con_nivel(Nombre, Nivel).', a => a);
-        out.textContent = prettyLines(ans.map(a => '- ' + a));
-      } catch (e) {
-        out.textContent = e.message;
-      }
-    });
+                            const collect = () => {
+                                session.answer((result) => {
+                                    if (result === false) {
+                                        resolve(answers);
+                                        return;
+                                    }
 
-    document.getElementById('btnProy').addEventListener('click', async () => {
-      try {
-        const ans = await runQuery('proyecto_con_nivel(Codigo, Nivel).', a => a);
-        out.textContent = prettyLines(ans.map(a => '- ' + a));
-      } catch (e) {
-        out.textContent = e.message;
-      }
-    });
+                                    if (result === null) {
+                                        resolve(answers);
+                                        return;
+                                    }
 
-    document.getElementById('btnTiene').addEventListener('click', async () => {
-      const p = document.getElementById('proyectoCheck').value.trim().toLowerCase();
-      try {
-        const ans = await runQuery(`personal_disponible_para(${p}).`, a => a);
-        out.textContent = ans.length
-          ? `Sí, existe personal suficiente para el proyecto ${p}.`
-          : `No, no hay personal suficiente para el proyecto ${p}.`;
-      } catch (e) {
-        out.textContent = e.message;
-      }
-    });
+                                    answers.push(formatAnswer(result));
+                                    collect();
+                                });
+                            };
 
-    document.getElementById('btnFalta').addEventListener('click', async () => {
-      const p = document.getElementById('proyectoCheck').value.trim().toLowerCase();
-      try {
-        const ans = await runQuery(`faltante_para(${p}, FS, FA, FJ).`, a => a);
-        out.textContent = ans.length
-          ? `Proyecto ${p}: ${ans[0]}`
-          : `No se pudo evaluar el proyecto ${p}.`;
-      } catch (e) {
-        out.textContent = e.message;
-      }
-    });
+                            collect();
+                        },
+                        error: (err) => reject(new Error(formatError(err))),
+                    });
+                });
+            }
 
-    init();
-  </script>
-</body>
+            function prettyLines(lines, emptyMsg = "Sin resultados.") {
+                return lines.length ? lines.join("\n") : emptyMsg;
+            }
+
+            function parseBindings(answerText) {
+                const clean = answerText.replace(/\s*;\s*$/, "");
+                const map = {};
+                const regex = /([A-Za-z_][A-Za-z0-9_]*)\s*=\s*([^,;]+)/g;
+                let match;
+
+                while ((match = regex.exec(clean)) !== null) {
+                    map[match[1]] = match[2].trim();
+                }
+
+                return map;
+            }
+
+            async function init() {
+                try {
+                    await loadKnowledgeBase();
+                    out.textContent =
+                        "Base de conocimiento cargada correctamente.";
+                } catch (e) {
+                    out.textContent = "Error cargando base: " + e.message;
+                }
+            }
+
+            document
+                .getElementById("btnDevs")
+                .addEventListener("click", async () => {
+                    try {
+                        const ans = await runQuery(
+                            "desarrollador_con_nivel(Nombre, Nivel).",
+                        );
+                        out.textContent = prettyLines(ans.map((a) => "- " + a));
+                    } catch (e) {
+                        out.textContent = e.message;
+                    }
+                });
+
+            document
+                .getElementById("btnProy")
+                .addEventListener("click", async () => {
+                    try {
+                        const ans = await runQuery(
+                            "proyecto_con_nivel(Codigo, Nivel).",
+                        );
+                        out.textContent = prettyLines(ans.map((a) => "- " + a));
+                    } catch (e) {
+                        out.textContent = e.message;
+                    }
+                });
+
+            document
+                .getElementById("btnTiene")
+                .addEventListener("click", async () => {
+                    const p = document
+                        .getElementById("proyectoCheck")
+                        .value.trim()
+                        .toLowerCase();
+                    try {
+                        const ans = await runQuery(
+                            `personal_disponible_para(${p}).`,
+                        );
+                        out.textContent = ans.length
+                            ? `Sí, existe personal suficiente para el proyecto ${p}.`
+                            : `No, no hay personal suficiente para el proyecto ${p}.`;
+                    } catch (e) {
+                        out.textContent = e.message;
+                    }
+                });
+
+            document
+                .getElementById("btnFalta")
+                .addEventListener("click", async () => {
+                    const p = document
+                        .getElementById("proyectoCheck")
+                        .value.trim()
+                        .toLowerCase();
+                    try {
+                        const qDetalle = await runQuery(
+                            `proyecto(${p}, Nivel), requerimiento_nivel(Nivel, ReqS, ReqA, ReqJ), contar_senior(S), contar_avanzado(A), contar_junior(J), faltante_para(${p}, FS, FA, FJ).`,
+                        );
+
+                        if (!qDetalle.length) {
+                            out.textContent = `No se pudo evaluar el proyecto ${p}. Verifica que exista (a-j).`;
+                            return;
+                        }
+
+                        const v = parseBindings(qDetalle[0]);
+                        const lines = [
+                            `Proyecto: ${p}`,
+                            `Nivel: ${v.Nivel ?? "desconocido"}`,
+                            "",
+                            "Requerido:",
+                            `- Senior: ${v.ReqS ?? "?"}`,
+                            `- Avanzado: ${v.ReqA ?? "?"}`,
+                            `- Junior: ${v.ReqJ ?? "?"}`,
+                            "",
+                            "Disponible:",
+                            `- Senior: ${v.S ?? "?"}`,
+                            `- Avanzado: ${v.A ?? "?"}`,
+                            `- Junior: ${v.J ?? "?"}`,
+                            "",
+                            "Faltante por contratar:",
+                            `- Senior: ${v.FS ?? "?"}`,
+                            `- Avanzado: ${v.FA ?? "?"}`,
+                            `- Junior: ${v.FJ ?? "?"}`,
+                        ];
+
+                        out.textContent = lines.join("\n");
+                    } catch (e) {
+                        out.textContent = e.message;
+                    }
+                });
+
+            init();
+        </script>
+    </body>
 </html>
